@@ -4,6 +4,7 @@ import cloneDeep from "lodash.clonedeep";
 import { Server } from "socket.io";
 import { generateGameBoard } from "./services/gameBoard";
 import { GameState } from "./types";
+import { createNewPlayer } from "./services/player";
 
 const games = new Map<string, GameState>();
 
@@ -14,7 +15,6 @@ app.post("/games/new", (_, res) => {
   const board = generateGameBoard(8);
   const game: GameState = {
     board,
-    activePlayer: { id: "", number: 1 },
     players: [],
   };
 
@@ -55,11 +55,8 @@ io.on("connection", (socket) => {
       console.log(socket.id + " joined " + gameId);
       socket.join(gameId);
 
-      game.players.push({
-        id: socket.id,
-        number: game.players.length > 0 ? 2 : 1,
-      });
-      game.activePlayer = game.players[0];
+      game.players.push(createNewPlayer(socket.id, game.players));
+      game.activePlayer = game.activePlayer ?? game.players[0];
 
       games.set(gameId, game);
       callback({ status: "OK", gameState: games.get(gameId) });
