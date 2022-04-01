@@ -2,9 +2,13 @@ import express from "express";
 import { nanoid } from "nanoid";
 import cloneDeep from "lodash.clonedeep";
 import { Server } from "socket.io";
-import { generateGameBoard } from "./services/gameBoard";
-import { GameState } from "./types";
-import { createNewPlayer } from "./services/player";
+import {
+  generateGameBoard,
+  getAdjacentGameBoxPosition,
+} from "@/services/gameBoard";
+import { updateGameBox, getOppositeBorder } from "@/services/gameBox";
+import { createNewPlayer } from "@/services/player";
+import { Border, Coordinates, GameState } from "@/types";
 
 const games = new Map<string, GameState>();
 
@@ -90,4 +94,48 @@ io.on("connection", (socket) => {
       io.to(gameId).emit("gameReady", false);
     }
   });
+
+  socket.on(
+    "playerMove",
+    (playerMove: { border: Border; position: Coordinates }, callback) => {
+      const gameId = [...socket.rooms][1];
+      const game = cloneDeep(games.get(gameId));
+
+      if (game && game.activePlayer && socket.id === game.activePlayer.id) {
+        const { border, position } = playerMove;
+        const targetBox = game.board[position.toString()];
+        const updatedBox = updateGameBox(
+          targetBox,
+          border,
+          game.activePlayer.number
+        );
+
+        const adjBoxPosition = getAdjacentGameBoxPosition(position, border);
+        const adjBorder = getOppositeBorder(border);
+        const adjBox = game.board[adjBoxPosition.toString()];
+        const updatedAdjBox = updateGameBox(
+          adjBox,
+          adjBorder,
+          game.activePlayer.number
+        );
+
+        if (!updatedBox.completedBy && !updatedAdjBox.completedBy) {
+          game.activePlayer =
+            game.activePlayer.number === 1
+              ? game.players.find((p) => p.number === 2)
+              : game.players.find((p) => p.number === 1);
+        }
+
+        game.board[position.toString()] = updatedBox;
+        game.board[adjBoxPosition.toString()] = updatedAdjBox;
+
+        games.set(gameId, game);
+        callback({ status: "OK" });
+
+        io.to(gameId).emit("gameUpdated", games.get(gameId));
+      } else {
+        callback({ status: "KO" });
+      }
+    }
+  );
 });

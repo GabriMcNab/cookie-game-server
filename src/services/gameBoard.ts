@@ -1,5 +1,5 @@
-import { generateGameBox } from "../services/gameBox";
-import { Border, Coordinates, GameBoard } from "../types";
+import { generateGameBox } from "@/services/gameBox";
+import { Border, Coordinates, GameBoard } from "@/types";
 
 /**
  * Generates a new game board

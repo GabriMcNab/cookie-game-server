@@ -1,4 +1,4 @@
-import { Border, GameBox, Player } from "../types";
+import { Border, GameBox, Player } from "@/types";
 
 /**
  * Generates a new GameBox. It sets the borders if the GameBox is one of the boxes on the edge of the GameBoard
