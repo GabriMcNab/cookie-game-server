@@ -3,7 +3,7 @@ import { nanoid } from "nanoid";
 import cloneDeep from "lodash.clonedeep";
 import { Server } from "socket.io";
 import { generateGameBoard } from "./services/gameBoard";
-import { GameState } from "./types/GameState";
+import { GameState } from "./types";
 
 const games = new Map<string, GameState>();
 
@@ -14,7 +14,7 @@ app.post("/games/new", (_, res) => {
   const board = generateGameBoard(8);
   const game: GameState = {
     board,
-    activePlayer: "",
+    activePlayer: { id: "", number: 1 },
     players: [],
   };
 
@@ -55,16 +55,19 @@ io.on("connection", (socket) => {
       console.log(socket.id + " joined " + gameId);
       socket.join(gameId);
 
-      game.players.push(socket.id);
+      game.players.push({
+        id: socket.id,
+        number: game.players.length > 0 ? 2 : 1,
+      });
       game.activePlayer = game.players[0];
 
-      if (game.players.length === 2) {
-        socket.to(gameId).emit("gameReady");
-      }
-
       games.set(gameId, game);
+      callback({ status: "OK", gameState: games.get(gameId) });
 
-      callback({ status: "OK" });
+      if (game.players.length === 2) {
+        console.log("Game " + gameId + " is now ready!");
+        io.to(gameId).emit("gameReady", true);
+      }
     } else {
       callback({ status: "KO" });
     }
@@ -76,7 +79,7 @@ io.on("connection", (socket) => {
     const game = cloneDeep(games.get(gameId));
 
     if (game) {
-      game.players = game.players.filter((p) => p !== socket.id);
+      game.players = game.players.filter(({ id }) => id !== socket.id);
       console.log("The remaining players are " + game.players);
 
       if (game.players.length === 0) {
@@ -87,6 +90,7 @@ io.on("connection", (socket) => {
       }
 
       games.set(gameId, game);
+      io.to(gameId).emit("gameReady", false);
     }
   });
 });

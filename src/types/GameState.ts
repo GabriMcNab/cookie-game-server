@@ -1,7 +1,7 @@
-import { GameBoard } from "./GameBoard";
+import { GameBoard, Player } from "@/types";
 
 export type GameState = {
   board: GameBoard;
-  players: string[];
-  activePlayer: string;
+  players: Player[];
+  activePlayer: Player;
 };
