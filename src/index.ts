@@ -7,7 +7,7 @@ import {
   getAdjacentGameBoxPosition,
 } from "@/services/gameBoard";
 import { updateGameBox, getOppositeBorder } from "@/services/gameBox";
-import { createNewPlayer } from "@/services/player";
+import { createNewPlayer, getPlayerScore } from "@/services/player";
 import { Border, Coordinates, GameState } from "@/types";
 
 const games = new Map<string, GameState>();
@@ -16,7 +16,7 @@ const app = express();
 
 app.post("/games/new", (_, res) => {
   const gameId = nanoid(6);
-  const board = generateGameBoard(8);
+  const board = generateGameBoard(4);
   const game: GameState = {
     board,
     players: [],
@@ -100,9 +100,14 @@ io.on("connection", (socket) => {
     (playerMove: { border: Border; position: Coordinates }, callback) => {
       const gameId = [...socket.rooms][1];
       const game = cloneDeep(games.get(gameId));
-      const player = game?.players.find((p) => p.id === socket.id);
+      const playerIndex = game?.players.findIndex((p) => p.id === socket.id);
 
-      if (game && player && player.number === game.activePlayer) {
+      if (
+        game &&
+        playerIndex !== undefined &&
+        playerIndex !== -1 &&
+        game.players[playerIndex].number === game.activePlayer
+      ) {
         const { border, position } = playerMove;
         const targetBox = game.board[position.toString()];
         const updatedBox = updateGameBox(targetBox, border, game.activePlayer);
@@ -118,6 +123,11 @@ io.on("connection", (socket) => {
 
         if (!updatedBox.completedBy && !updatedAdjBox.completedBy) {
           game.activePlayer = game.activePlayer === 1 ? 2 : 1;
+        } else {
+          game.players[playerIndex].score = getPlayerScore(
+            game.activePlayer,
+            game.board
+          );
         }
 
         game.board[position.toString()] = updatedBox;
