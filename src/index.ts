@@ -60,7 +60,7 @@ io.on("connection", (socket) => {
       socket.join(gameId);
 
       game.players.push(createNewPlayer(socket.id, game.players));
-      game.activePlayer = game.activePlayer ?? game.players[0];
+      game.activePlayer = game.activePlayer ?? game.players[0].number;
 
       games.set(gameId, game);
       callback({ status: "OK", gameState: games.get(gameId) });
@@ -100,15 +100,12 @@ io.on("connection", (socket) => {
     (playerMove: { border: Border; position: Coordinates }, callback) => {
       const gameId = [...socket.rooms][1];
       const game = cloneDeep(games.get(gameId));
+      const player = game?.players.find((p) => p.id === socket.id);
 
-      if (game && game.activePlayer && socket.id === game.activePlayer.id) {
+      if (game && player && player.number === game.activePlayer) {
         const { border, position } = playerMove;
         const targetBox = game.board[position.toString()];
-        const updatedBox = updateGameBox(
-          targetBox,
-          border,
-          game.activePlayer.number
-        );
+        const updatedBox = updateGameBox(targetBox, border, game.activePlayer);
 
         const adjBoxPosition = getAdjacentGameBoxPosition(position, border);
         const adjBorder = getOppositeBorder(border);
@@ -116,14 +113,11 @@ io.on("connection", (socket) => {
         const updatedAdjBox = updateGameBox(
           adjBox,
           adjBorder,
-          game.activePlayer.number
+          game.activePlayer
         );
 
         if (!updatedBox.completedBy && !updatedAdjBox.completedBy) {
-          game.activePlayer =
-            game.activePlayer.number === 1
-              ? game.players.find((p) => p.number === 2)
-              : game.players.find((p) => p.number === 1);
+          game.activePlayer = game.activePlayer === 1 ? 2 : 1;
         }
 
         game.board[position.toString()] = updatedBox;
