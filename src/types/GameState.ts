@@ -4,4 +4,6 @@ export type GameState = {
   board: GameBoard;
   players: Player[];
   activePlayer?: Player["number"];
+  gameReady: boolean;
+  gameOver: boolean;
 };

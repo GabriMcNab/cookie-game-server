@@ -20,6 +20,8 @@ app.post("/games/new", (_, res) => {
   const game: GameState = {
     board,
     players: [],
+    gameReady: false,
+    gameOver: false,
   };
 
   games.set(gameId, game);
@@ -55,20 +57,21 @@ io.on("connection", (socket) => {
     console.log(socket.id + " connecting to " + gameId);
     const game = cloneDeep(games.get(gameId));
 
-    if (game && game.players.length < 2) {
+    if (game && !game.gameOver && game.players.length < 2) {
       console.log(socket.id + " joined " + gameId);
       socket.join(gameId);
 
       game.players.push(createNewPlayer(socket.id, game.players));
       game.activePlayer = game.activePlayer ?? game.players[0].number;
 
-      games.set(gameId, game);
-      callback({ status: "OK", gameState: games.get(gameId) });
-
       if (game.players.length === 2) {
         console.log("Game " + gameId + " is now ready!");
-        io.to(gameId).emit("gameReady", true);
+        game.gameReady = true;
       }
+
+      games.set(gameId, game);
+      callback({ status: "OK" });
+      io.to(gameId).emit("playerJoined", games.get(gameId));
     } else {
       callback({ status: "KO" });
     }
@@ -90,8 +93,9 @@ io.on("connection", (socket) => {
         return;
       }
 
+      game.gameReady = false;
       games.set(gameId, game);
-      io.to(gameId).emit("gameReady", false);
+      io.to(gameId).emit("gameUpdated", games.get(gameId));
     }
   });
 
@@ -132,6 +136,10 @@ io.on("connection", (socket) => {
 
         game.board[position.toString()] = updatedBox;
         game.board[adjBoxPosition.toString()] = updatedAdjBox;
+
+        if (Object.values(game.board).every((box) => box.completedBy)) {
+          game.gameOver = true;
+        }
 
         games.set(gameId, game);
         callback({ status: "OK" });
